@@ -1,1 +1,3 @@
-# -E-Commerce-Order-and-Inventory-Management-System
+# E-Commerce-Order-and-Inventory-Management-System
+
+#Developers:
