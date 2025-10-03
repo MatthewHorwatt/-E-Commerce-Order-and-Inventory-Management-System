@@ -1,3 +1,3 @@
 # E-Commerce-Order-and-Inventory-Management-System
 
-Developers:
+Developers: Mya Bishop and Matthew Horwatt
