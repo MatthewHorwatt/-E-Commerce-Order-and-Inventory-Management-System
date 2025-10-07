@@ -11,6 +11,8 @@ public class ECommerceGUI extends JFrame {
     private java.util.List<Product> products = new ArrayList<>();
     private java.util.List<Order> orders = new ArrayList<>();
     private Map<String, Cart> customerCarts = new HashMap<>();
+    private List<Product> filteredProducts = new ArrayList<>();
+    private boolean isFiltered = false;
     
     // User ID counter for chronological IDs
     private int userIdCounter = 1;
@@ -252,30 +254,113 @@ public class ECommerceGUI extends JFrame {
     }
     
     private void createProductsPanel() {
-        productsPanel = new JPanel(new BorderLayout());
+    productsPanel = new JPanel(new BorderLayout());
+    
+    // Table setup
+    String[] columns = {"ID", "Name", "Category", "Price", "Stock"};
+    productsTableModel = new DefaultTableModel(columns, 0);
+    productsTable = new JTable(productsTableModel);
+    
+    // Search panel at the top
+    JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+    searchPanel.setBorder(BorderFactory.createTitledBorder("Search Products"));
+    
+    JLabel searchLabel = new JLabel("Search:");
+    JTextField searchField = new JTextField(20);
+    JButton searchButton = new JButton("Search");
+    JButton clearSearchButton = new JButton("Clear Search");
+    
+    searchPanel.add(searchLabel);
+    searchPanel.add(searchField);
+    searchPanel.add(searchButton);
+    searchPanel.add(clearSearchButton);
+    
+    // Sorting panel
+    JPanel sortPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+    sortPanel.setBorder(BorderFactory.createTitledBorder("Sort Products"));
+    
+    JLabel sortLabel = new JLabel("Sort by:");
+    String[] sortOptions = {"Name", "Category", "Price", "Quantity"};
+    JComboBox<String> sortComboBox = new JComboBox<>(sortOptions);
+    
+    JRadioButton ascendingRadio = new JRadioButton("Ascending", true);
+    JRadioButton descendingRadio = new JRadioButton("Descending");
+    ButtonGroup orderGroup = new ButtonGroup();
+    orderGroup.add(ascendingRadio);
+    orderGroup.add(descendingRadio);
+    
+    JButton sortButton = new JButton("Sort");
+    JButton resetButton = new JButton("Reset Order");
+    
+    sortPanel.add(sortLabel);
+    sortPanel.add(sortComboBox);
+    sortPanel.add(ascendingRadio);
+    sortPanel.add(descendingRadio);
+    sortPanel.add(sortButton);
+    sortPanel.add(resetButton);
+    
+    // Bottom control panel
+    JPanel bottomPanel = new JPanel(new FlowLayout());
+    JButton refreshButton = new JButton("Refresh Products");
+    JButton addToCartButton = new JButton("Add to Cart");
+    
+    bottomPanel.add(refreshButton);
+    bottomPanel.add(addToCartButton);
+    
+    // Combine panels
+    JPanel topControls = new JPanel(new BorderLayout());
+    topControls.add(searchPanel, BorderLayout.NORTH);
+    topControls.add(sortPanel, BorderLayout.CENTER);
+    
+    JPanel controlPanel = new JPanel(new BorderLayout());
+    controlPanel.add(topControls, BorderLayout.NORTH);
+    controlPanel.add(bottomPanel, BorderLayout.SOUTH);
+    
+    productsPanel.add(new JScrollPane(productsTable), BorderLayout.CENTER);
+    productsPanel.add(controlPanel, BorderLayout.SOUTH);
+    
+    // Search button actions
+    searchButton.addActionListener(e -> {
+        String searchTerm = searchField.getText();
+        searchProducts(searchTerm);
         
-        // Table setup
-        String[] columns = {"ID", "Name", "Category", "Price", "Stock"};
-        productsTableModel = new DefaultTableModel(columns, 0);
-        productsTable = new JTable(productsTableModel);
+        /*if (isFiltered) {
+            JOptionPane.showMessageDialog(this, 
+                "Found " + filteredProducts.size() + " product(s) matching: " + searchTerm);
+        }*/
+    });
+    
+    clearSearchButton.addActionListener(e -> {
+        searchField.setText("");
+        isFiltered = false;
+        filteredProducts.clear();
+        refreshProductsTable();
         
-        // Control panel
-        JPanel controlPanel = new JPanel(new FlowLayout());
-        JButton refreshButton = new JButton("Refresh Products");
-        JButton addToCartButton = new JButton("Add to Cart");
+    });
+    
+    // Allow Enter key to search
+    searchField.addActionListener(e -> searchButton.doClick());
+    
+    // Sort button actions
+    sortButton.addActionListener(e -> {
+        String criterion = (String) sortComboBox.getSelectedItem();
+        boolean ascending = ascendingRadio.isSelected();
+        sortProducts(criterion, ascending);
         
-        controlPanel.add(refreshButton);
-        controlPanel.add(addToCartButton);
+    });
+    
+    resetButton.addActionListener(e -> {
+        isFiltered = false;
+        filteredProducts.clear();
+        refreshProductsTable();
         
-        productsPanel.add(new JScrollPane(productsTable), BorderLayout.CENTER);
-        productsPanel.add(controlPanel, BorderLayout.SOUTH);
-        
-        // Button actions
-        refreshButton.addActionListener(e -> refreshProductsTable());
-        addToCartButton.addActionListener(e -> addSelectedToCart());
-        
-        tabbedPane.addTab("Products", productsPanel);
-    }
+    });
+    
+    refreshButton.addActionListener(e -> refreshProductsTable());
+    addToCartButton.addActionListener(e -> addSelectedToCart());
+    
+    tabbedPane.addTab("Products", productsPanel);
+}
     
     private void createCartPanel() {
         cartPanel = new JPanel(new BorderLayout());
@@ -330,72 +415,215 @@ public class ECommerceGUI extends JFrame {
     }
     
     private void createAdminPanel() {
-        adminPanel = new JPanel(new BorderLayout());
+    adminPanel = new JPanel(new BorderLayout());
+    
+    // Top section: Add product form
+    JPanel formPanel = new JPanel(new GridLayout(5, 2, 5, 5));
+    JTextField idField = new JTextField();
+    JTextField nameField = new JTextField();
+    JTextField categoryField = new JTextField();
+    JTextField priceField = new JTextField();
+    JTextField quantityField = new JTextField();
+    
+    formPanel.add(new JLabel("Product ID:"));
+    formPanel.add(idField);
+    formPanel.add(new JLabel("Name:"));
+    formPanel.add(nameField);
+    formPanel.add(new JLabel("Category:"));
+    formPanel.add(categoryField);
+    formPanel.add(new JLabel("Price:"));
+    formPanel.add(priceField);
+    formPanel.add(new JLabel("Quantity:"));
+    formPanel.add(quantityField);
+    
+    JButton addProductButton = new JButton("Add Product");
+    JButton viewProductsButton = new JButton("View All Products");
+    
+    JPanel buttonPanel = new JPanel();
+    buttonPanel.add(addProductButton);
+    buttonPanel.add(viewProductsButton);
+    
+    // Search panel
+    JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+    searchPanel.setBorder(BorderFactory.createTitledBorder("Search Products"));
+    
+    JLabel searchLabel = new JLabel("Search:");
+    JTextField adminSearchField = new JTextField(20);
+    JButton adminSearchButton = new JButton("Search");
+    JButton adminClearSearchButton = new JButton("Clear Search");
+    
+    searchPanel.add(searchLabel);
+    searchPanel.add(adminSearchField);
+    searchPanel.add(adminSearchButton);
+    searchPanel.add(adminClearSearchButton);
+    
+    // Sorting controls
+    JPanel sortPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+    sortPanel.setBorder(BorderFactory.createTitledBorder("Sort Products"));
+    
+    JLabel sortLabel = new JLabel("Sort by:");
+    String[] sortOptions = {"Name", "Category", "Price", "Quantity"};
+    JComboBox<String> sortComboBox = new JComboBox<>(sortOptions);
+    
+    JRadioButton ascendingRadio = new JRadioButton("Ascending", true);
+    JRadioButton descendingRadio = new JRadioButton("Descending");
+    ButtonGroup orderGroup = new ButtonGroup();
+    orderGroup.add(ascendingRadio);
+    orderGroup.add(descendingRadio);
+    
+    JButton sortButton = new JButton("Sort");
+    JButton resetButton = new JButton("Reset Order");
+    
+    sortPanel.add(sortLabel);
+    sortPanel.add(sortComboBox);
+    sortPanel.add(ascendingRadio);
+    sortPanel.add(descendingRadio);
+    sortPanel.add(sortButton);
+    sortPanel.add(resetButton);
+    
+    // Bottom section: Product table
+    String[] columns = {"ID", "Name", "Category", "Price", "Stock"};
+    DefaultTableModel adminProductsTableModel = new DefaultTableModel(columns, 0);
+    JTable adminProductsTable = new JTable(adminProductsTableModel);
+    JScrollPane tableScrollPane = new JScrollPane(adminProductsTable);
+    
+    // Refresh admin table helper
+    Runnable refreshAdminTable = () -> {
+        adminProductsTableModel.setRowCount(0);
         
-        JPanel formPanel = new JPanel(new GridLayout(5, 2, 5, 5));
-        JTextField idField = new JTextField();
-        JTextField nameField = new JTextField();
-        JTextField categoryField = new JTextField();
-        JTextField priceField = new JTextField();
-        JTextField quantityField = new JTextField();
+        // Determine which list to display
+        List<Product> displayList = isFiltered ? filteredProducts : products;
         
-        formPanel.add(new JLabel("Product ID:"));
-        formPanel.add(idField);
-        formPanel.add(new JLabel("Name:"));
-        formPanel.add(nameField);
-        formPanel.add(new JLabel("Category:"));
-        formPanel.add(categoryField);
-        formPanel.add(new JLabel("Price:"));
-        formPanel.add(priceField);
-        formPanel.add(new JLabel("Quantity:"));
-        formPanel.add(quantityField);
-        
-        JButton addProductButton = new JButton("Add Product");
-        JButton viewProductsButton = new JButton("View All Products");
-        
-        JPanel buttonPanel = new JPanel();
-        buttonPanel.add(addProductButton);
-        buttonPanel.add(viewProductsButton);
-        
-        adminPanel.add(formPanel, BorderLayout.NORTH);
-        adminPanel.add(buttonPanel, BorderLayout.CENTER);
-        
-        // Button actions
-        addProductButton.addActionListener(e -> {
-            try {
-                String id = idField.getText();
-                String name = nameField.getText();
-                String category = categoryField.getText();
-                double price = Double.parseDouble(priceField.getText());
-                int quantity = Integer.parseInt(quantityField.getText());
-                
-                if (id.isEmpty() || name.isEmpty() || category.isEmpty()) {
-                    JOptionPane.showMessageDialog(this, "Please fill all fields!");
-                    return;
-                }
-                
-                Product product = new Product(id, name, category, price, quantity);
-                products.add(product);
-                
-                JOptionPane.showMessageDialog(this, "Product added successfully!");
-                clearFields(idField, nameField, categoryField, priceField, quantityField);
-                refreshProductsTable();
-                
-            } catch (NumberFormatException ex) {
-                JOptionPane.showMessageDialog(this, "Please enter valid numbers for price and quantity!", "Input Error", JOptionPane.ERROR_MESSAGE);
+        for (Product product : displayList) {
+            adminProductsTableModel.addRow(new Object[]{
+                product.getId(),
+                product.getName(),
+                product.getCategory(),
+                String.format("$%.2f", product.getPrice()),
+                product.getQuantity()
+            });
+        }
+    };
+    
+    // Combine all sections - Fixed layout to prevent overlap
+    JPanel controlsPanel = new JPanel(new BorderLayout());
+    controlsPanel.add(searchPanel, BorderLayout.NORTH);
+    controlsPanel.add(sortPanel, BorderLayout.CENTER);
+    
+    JPanel topSection = new JPanel(new BorderLayout());
+    topSection.add(formPanel, BorderLayout.NORTH);
+    topSection.add(buttonPanel, BorderLayout.CENTER);
+    topSection.add(controlsPanel, BorderLayout.SOUTH);
+    
+    adminPanel.add(topSection, BorderLayout.NORTH);
+    adminPanel.add(tableScrollPane, BorderLayout.CENTER);
+    
+    // Button actions
+    addProductButton.addActionListener(e -> {
+        try {
+            String id = idField.getText();
+            String name = nameField.getText();
+            String category = categoryField.getText();
+            double price = Double.parseDouble(priceField.getText());
+            int quantity = Integer.parseInt(quantityField.getText());
+            
+            if (id.isEmpty() || name.isEmpty() || category.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Please fill all fields!");
+                return;
             }
-        });
+            
+            Product product = new Product(id, name, category, price, quantity);
+            products.add(product);
+            
+            
+            clearFields(idField, nameField, categoryField, priceField, quantityField);
+            refreshProductsTable();
+            refreshAdminTable.run();
+            
+        } catch (NumberFormatException ex) {
+            JOptionPane.showMessageDialog(this, "Please enter valid numbers for price and quantity!", 
+                "Input Error", JOptionPane.ERROR_MESSAGE);
+        }
+    });
+    
+    viewProductsButton.addActionListener(e -> {
+        StringBuilder sb = new StringBuilder("All Products:\n\n");
+        for (Product p : products) {
+            sb.append(p.toString()).append("\n");
+        }
+        JOptionPane.showMessageDialog(this, sb.toString(), "All Products", JOptionPane.INFORMATION_MESSAGE);
+    });
+    
+    // Admin search actions
+    adminSearchButton.addActionListener(e -> {
+        String searchTerm = adminSearchField.getText();
+        searchProducts(searchTerm);
+        refreshAdminTable.run();
         
-        viewProductsButton.addActionListener(e -> {
-            StringBuilder sb = new StringBuilder("All Products:\n\n");
-            for (Product p : products) {
-                sb.append(p.toString()).append("\n");
+        /*if (isFiltered) {
+            JOptionPane.showMessageDialog(this, 
+                "Found " + filteredProducts.size() + " product(s) matching: " + searchTerm);
+        }*/
+    });
+    
+    adminClearSearchButton.addActionListener(e -> {
+        adminSearchField.setText("");
+        isFiltered = false;
+        filteredProducts.clear();
+        refreshProductsTable();
+        refreshAdminTable.run();
+        
+    });
+    
+    // Allow Enter key to search
+    adminSearchField.addActionListener(e -> adminSearchButton.doClick());
+    
+    // Sort actions
+    sortButton.addActionListener(e -> {
+        String criterion = (String) sortComboBox.getSelectedItem();
+        boolean ascending = ascendingRadio.isSelected();
+        sortProducts(criterion, ascending);
+        refreshAdminTable.run();
+        
+    });
+    
+    resetButton.addActionListener(e -> {
+        isFiltered = false;
+        filteredProducts.clear();
+        refreshProductsTable();
+        refreshAdminTable.run();
+        
+    });
+    
+    // Initial table load
+    refreshAdminTable.run();
+    
+    tabbedPane.addTab("Admin", adminPanel);
+}
+    private void sortProducts(String criterion, boolean ascending) {
+    products.sort(new Comparator<Product>() {
+        @Override
+        public int compare(Product p1, Product p2) {
+            int result = 0;
+            switch (criterion) {
+                case "Name":
+                    result = p1.getName().compareToIgnoreCase(p2.getName());
+                    break;
+                case "Category":
+                    result = p1.getCategory().compareToIgnoreCase(p2.getCategory());
+                    break;
+                case "Price":
+                    result = Double.compare(p1.getPrice(), p2.getPrice());
+                    break;
+                case "Quantity":
+                    result = Integer.compare(p1.getQuantity(), p2.getQuantity());
+                    break;
             }
-            JOptionPane.showMessageDialog(this, sb.toString(), "All Products", JOptionPane.INFORMATION_MESSAGE);
-        });
-        
-        tabbedPane.addTab("Admin", adminPanel);
-    }
+            return ascending ? result : -result;
+        }
+    });
+    refreshProductsTable();
+}
     
     // Utility methods
     private User authenticate(String username, String password) {
@@ -411,6 +639,33 @@ public class ECommerceGUI extends JFrame {
         }
         return null;
     }
+    private void searchProducts(String searchTerm) {
+    if (searchTerm == null || searchTerm.trim().isEmpty()) {
+        // If search is empty, show all products
+        isFiltered = false;
+        filteredProducts.clear();
+        refreshProductsTable();
+        return;
+    }
+    
+    String lowerSearchTerm = searchTerm.toLowerCase().trim();
+    filteredProducts.clear();
+    
+    // Search through all products
+    for (Product product : products) {
+        // Check if search term matches any product field
+        if (product.getName().toLowerCase().contains(lowerSearchTerm) ||
+            product.getCategory().toLowerCase().contains(lowerSearchTerm) ||
+            product.getId().toLowerCase().contains(lowerSearchTerm) ||
+            String.valueOf(product.getPrice()).contains(lowerSearchTerm) ||
+            String.valueOf(product.getQuantity()).contains(lowerSearchTerm)) {
+            filteredProducts.add(product);
+        }
+    }
+    
+    isFiltered = true;
+    refreshProductsTable();
+}
     
     private void updateUIBasedOnRole() {
         if (currentUser == null) {
@@ -438,17 +693,21 @@ public class ECommerceGUI extends JFrame {
     }
     
     private void refreshProductsTable() {
-        productsTableModel.setRowCount(0);
-        for (Product product : products) {
-            productsTableModel.addRow(new Object[]{
-                product.getId(),
-                product.getName(),
-                product.getCategory(),
-                String.format("$%.2f", product.getPrice()),
-                product.getQuantity()
-            });
-        }
+    productsTableModel.setRowCount(0);
+    
+    // Determine which list to display
+    List<Product> displayList = isFiltered ? filteredProducts : products;
+    
+    for (Product product : displayList) {
+        productsTableModel.addRow(new Object[]{
+            product.getId(),
+            product.getName(),
+            product.getCategory(),
+            String.format("$%.2f", product.getPrice()),
+            product.getQuantity()
+        });
     }
+}
     
     private void refreshCartTable(JLabel totalLabel) {
         cartTableModel.setRowCount(0);
