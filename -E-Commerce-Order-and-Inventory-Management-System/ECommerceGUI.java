@@ -2,15 +2,18 @@ import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.awt.event.*;
-import java.util.*; // For List, ArrayList, Map, HashMap
-import java.util.List; // Explicit import to avoid ambiguity
+import java.util.*;
+import java.util.List;
 
 public class ECommerceGUI extends JFrame {
-    // Data storage - using explicit java.util.List
+    // Data storage
     private java.util.List<User> users = new ArrayList<>();
     private java.util.List<Product> products = new ArrayList<>();
     private java.util.List<Order> orders = new ArrayList<>();
     private Map<String, Cart> customerCarts = new HashMap<>();
+    
+    // User ID counter for chronological IDs
+    private int userIdCounter = 1;
     
     // Current user
     private User currentUser;
@@ -34,6 +37,7 @@ public class ECommerceGUI extends JFrame {
         // Create sample users
         users.add(new User("admin1", "admin", "admin123", "Admin User", "admin"));
         users.add(new User("cust1", "john", "password", "John Customer", "customer"));
+        userIdCounter = 2; // Start after existing sample users
         
         // Create sample products
         products.add(new Product("p1", "Laptop", "Electronics", 999.99, 10));
@@ -75,6 +79,7 @@ public class ECommerceGUI extends JFrame {
         JPasswordField passField = new JPasswordField(15);
         
         JButton loginButton = new JButton("Login");
+        JButton registerButton = new JButton("Register");
         JButton exitButton = new JButton("Exit");
         
         gbc.gridwidth = 2;
@@ -98,6 +103,10 @@ public class ECommerceGUI extends JFrame {
         loginPanel.add(loginButton, gbc);
         
         gbc.gridx = 1; gbc.gridy = 3;
+        loginPanel.add(registerButton, gbc);
+        
+        gbc.gridwidth = 2;
+        gbc.gridx = 0; gbc.gridy = 4;
         loginPanel.add(exitButton, gbc);
         
         // Login button action
@@ -108,7 +117,6 @@ public class ECommerceGUI extends JFrame {
             User user = authenticate(username, password);
             if (user != null) {
                 currentUser = user;
-                JOptionPane.showMessageDialog(this, "Login successful! Welcome " + user.getName());
                 updateUIBasedOnRole();
                 userField.setText("");
                 passField.setText("");
@@ -117,9 +125,130 @@ public class ECommerceGUI extends JFrame {
             }
         });
         
+        // Register button action
+        registerButton.addActionListener(e -> showRegistrationDialog());
+        
         exitButton.addActionListener(e -> System.exit(0));
         
         tabbedPane.addTab("Login", loginPanel);
+    }
+    
+    private void showRegistrationDialog() {
+        JDialog regDialog = new JDialog(this, "Register New Customer", true);
+        regDialog.setLayout(new GridBagLayout());
+        regDialog.setSize(400, 300);
+        regDialog.setLocationRelativeTo(this);
+        
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(10, 10, 10, 10);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        
+        JLabel titleLabel = new JLabel("Customer Registration", JLabel.CENTER);
+        titleLabel.setFont(new Font("Arial", Font.BOLD, 16));
+        
+        JLabel nameLabel = new JLabel("Full Name:");
+        JTextField nameField = new JTextField(20);
+        
+        JLabel userLabel = new JLabel("Username:");
+        JTextField userField = new JTextField(20);
+        
+        JLabel passLabel = new JLabel("Password:");
+        JPasswordField passField = new JPasswordField(20);
+        
+        JLabel confirmPassLabel = new JLabel("Confirm Password:");
+        JPasswordField confirmPassField = new JPasswordField(20);
+        
+        JButton submitButton = new JButton("Register");
+        JButton cancelButton = new JButton("Cancel");
+        
+        gbc.gridwidth = 2;
+        gbc.gridx = 0; gbc.gridy = 0;
+        regDialog.add(titleLabel, gbc);
+        
+        gbc.gridwidth = 1;
+        gbc.gridx = 0; gbc.gridy = 1;
+        regDialog.add(nameLabel, gbc);
+        gbc.gridx = 1;
+        regDialog.add(nameField, gbc);
+        
+        gbc.gridx = 0; gbc.gridy = 2;
+        regDialog.add(userLabel, gbc);
+        gbc.gridx = 1;
+        regDialog.add(userField, gbc);
+        
+        gbc.gridx = 0; gbc.gridy = 3;
+        regDialog.add(passLabel, gbc);
+        gbc.gridx = 1;
+        regDialog.add(passField, gbc);
+        
+        gbc.gridx = 0; gbc.gridy = 4;
+        regDialog.add(confirmPassLabel, gbc);
+        gbc.gridx = 1;
+        regDialog.add(confirmPassField, gbc);
+        
+        gbc.gridx = 0; gbc.gridy = 5;
+        regDialog.add(submitButton, gbc);
+        gbc.gridx = 1;
+        regDialog.add(cancelButton, gbc);
+        
+        // Submit button action
+        submitButton.addActionListener(e -> {
+            String name = nameField.getText().trim();
+            String username = userField.getText().trim();
+            String password = new String(passField.getPassword());
+            String confirmPassword = new String(confirmPassField.getPassword());
+            
+            // Validation
+            if (name.isEmpty() || username.isEmpty() || password.isEmpty()) {
+                JOptionPane.showMessageDialog(regDialog, "All fields are required!", "Validation Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            
+            if (username.length() < 3) {
+                JOptionPane.showMessageDialog(regDialog, "Username must be at least 3 characters!", "Validation Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            
+            if (password.length() < 4) {
+                JOptionPane.showMessageDialog(regDialog, "Password must be at least 4 characters!", "Validation Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            
+            if (!password.equals(confirmPassword)) {
+                JOptionPane.showMessageDialog(regDialog, "Passwords do not match!", "Validation Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            
+            // Check if username already exists
+            if (isUsernameExists(username)) {
+                JOptionPane.showMessageDialog(regDialog, "Username already exists! Please choose another.", "Registration Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            
+            // Create new user with chronological ID
+            String userId = "cust" + userIdCounter++;
+            User newUser = new User(userId, username, password, name, "customer");
+            users.add(newUser);
+            
+            JOptionPane.showMessageDialog(regDialog, 
+                "Registration successful!\nYour User ID: " + userId + "\nYou can now login with your username and password.",
+                "Success", JOptionPane.INFORMATION_MESSAGE);
+            
+            regDialog.dispose();
+        });
+        
+        cancelButton.addActionListener(e -> regDialog.dispose());
+        
+        regDialog.setVisible(true);
+    }
+    
+    private boolean isUsernameExists(String username) {
+        for (User user : users) {
+            if (user.getUsername().equalsIgnoreCase(username)) {
+                return true;
+            }
+        }
+        return false;
     }
     
     private void createProductsPanel() {
