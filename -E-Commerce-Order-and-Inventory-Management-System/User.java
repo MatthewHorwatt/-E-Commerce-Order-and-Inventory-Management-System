@@ -1,11 +1,9 @@
-import java.util.*;
-
 public class User {
     private String id;
     private String username;
     private String password;
     private String name;
-    private String role; // "customer" or "admin"
+    private String role;
     
     public User(String id, String username, String password, String name, String role) {
         this.id = id;
