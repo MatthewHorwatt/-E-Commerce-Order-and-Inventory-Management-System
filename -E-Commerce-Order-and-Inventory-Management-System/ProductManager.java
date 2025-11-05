@@ -2,25 +2,71 @@ import java.util.*;
 
 public class ProductManager {
     private List<Product> products;
+    private ProductHeap minPriceHeap;
+    private ProductHeap maxPriceHeap;
     
     public ProductManager() {
         this.products = new ArrayList<>();
+        this.minPriceHeap = new ProductHeap(true);  // Min-heap for ascending sort
+        this.maxPriceHeap = new ProductHeap(false); // Max-heap for descending sort
         initializeSampleProducts();
     }
     
     private void initializeSampleProducts() {
-        products.add(new Product("p1", "Laptop", "Electronics", 999.99, 10));
-        products.add(new Product("p2", "Smartphone", "Electronics", 699.99, 25));
-        products.add(new Product("p3", "Book", "Education", 29.99, 100));
+        addProduct(new Product("p1", "Laptop", "Electronics", 999.99, 10));
+        addProduct(new Product("p2", "Smartphone", "Electronics", 699.99, 25));
+        addProduct(new Product("p3", "Book", "Education", 29.99, 100));
+        addProduct(new Product("p4", "Headphones", "Electronics", 149.99, 15));
+        addProduct(new Product("p5", "Tablet", "Electronics", 499.99, 8));
     }
     
-    // Basic CRUD operations
-    public void addProduct(Product product) {
+    // Enhanced CRUD operations
+    public boolean addProduct(Product product) {
+        // Check for duplicate ID
+        for (Product p : products) {
+            if (p.getId().equals(product.getId())) {
+                return false;
+            }
+        }
+        
         products.add(product);
+        minPriceHeap.add(product);
+        maxPriceHeap.add(product);
+        return true;
     }
     
     public boolean removeProduct(String productId) {
-        return products.removeIf(p -> p.getId().equals(productId));
+        Product toRemove = null;
+        for (Product product : products) {
+            if (product.getId().equals(productId)) {
+                toRemove = product;
+                break;
+            }
+        }
+        
+        if (toRemove != null) {
+            products.remove(toRemove);
+            // Rebuild heaps (simplified approach)
+            rebuildHeaps();
+            return true;
+        }
+        return false;
+    }
+    
+    public boolean updateProduct(String productId, String name, String category, double price, int quantity) {
+        for (Product product : products) {
+            if (product.getId().equals(productId)) {
+                product.setName(name);
+                product.setCategory(category);
+                product.setPrice(price);
+                product.setQuantity(quantity);
+                
+                // Rebuild heaps since price might have changed
+                rebuildHeaps();
+                return true;
+            }
+        }
+        return false;
     }
     
     public Product getProductById(String productId) {
@@ -36,18 +82,16 @@ public class ProductManager {
         return new ArrayList<>(products);
     }
     
-    // Simple sorting by price
-    public List<Product> getProductsSortedByPrice() {
-        List<Product> sorted = new ArrayList<>(products);
-        Collections.sort(sorted, new Comparator<Product>() {
-            public int compare(Product p1, Product p2) {
-                return Double.compare(p1.getPrice(), p2.getPrice());
-            }
-        });
-        return sorted;
+    // Advanced sorting using heaps
+    public List<Product> getProductsSortedByPriceAsc() {
+        return minPriceHeap.getAllSorted();
     }
     
-    // Basic search
+    public List<Product> getProductsSortedByPriceDesc() {
+        return maxPriceHeap.getAllSorted();
+    }
+    
+    // Search functionality
     public List<Product> searchProductsByName(String name) {
         List<Product> results = new ArrayList<>();
         for (Product product : products) {
@@ -56,5 +100,54 @@ public class ProductManager {
             }
         }
         return results;
+    }
+    
+    public List<Product> getProductsByCategory(String category) {
+        List<Product> results = new ArrayList<>();
+        for (Product product : products) {
+            if (product.getCategory().equalsIgnoreCase(category)) {
+                results.add(product);
+            }
+        }
+        return results;
+    }
+    
+    // Inventory management
+    public List<Product> getOutOfStockProducts() {
+        List<Product> outOfStock = new ArrayList<>();
+        for (Product product : products) {
+            if (product.getQuantity() == 0) {
+                outOfStock.add(product);
+            }
+        }
+        return outOfStock;
+    }
+    
+    public List<Product> getLowStockProducts(int threshold) {
+        List<Product> lowStock = new ArrayList<>();
+        for (Product product : products) {
+            if (product.getQuantity() > 0 && product.getQuantity() <= threshold) {
+                lowStock.add(product);
+            }
+        }
+        return lowStock;
+    }
+    
+    private void rebuildHeaps() {
+        minPriceHeap = new ProductHeap(true);
+        maxPriceHeap = new ProductHeap(false);
+        
+        for (Product product : products) {
+            minPriceHeap.add(product);
+            maxPriceHeap.add(product);
+        }
+    }
+    
+    public List<String> getAllCategories() {
+        Set<String> categories = new HashSet<>();
+        for (Product product : products) {
+            categories.add(product.getCategory());
+        }
+        return new ArrayList<>(categories);
     }
 }
