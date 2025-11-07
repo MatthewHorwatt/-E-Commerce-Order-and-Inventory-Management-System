@@ -16,6 +16,12 @@ public class ProductManager {
     
     // Basic CRUD operations
     public void addProduct(Product product) {
+        // Prevent adding product with duplicate ID
+        for (Product p : products) {
+            if (p.getId().equals(product.getId())) {
+                throw new IllegalArgumentException("Product with ID already exists: " + product.getId());
+            }
+        }
         products.add(product);
     }
     
@@ -39,12 +45,50 @@ public class ProductManager {
     // Simple sorting by price
     public List<Product> getProductsSortedByPrice() {
         List<Product> sorted = new ArrayList<>(products);
-        Collections.sort(sorted, new Comparator<Product>() {
-            public int compare(Product p1, Product p2) {
-                return Double.compare(p1.getPrice(), p2.getPrice());
-            }
-        });
+        Collections.sort(sorted, Comparator.comparingDouble(Product::getPrice));
         return sorted;
+    }
+
+    public List<Product> getProductsSortedByPriceAsc() {
+        return getProductsSortedByPrice();
+    }
+
+    public List<Product> getProductsSortedByPriceDesc() {
+        List<Product> sorted = getProductsSortedByPrice();
+        Collections.reverse(sorted);
+        return sorted;
+    }
+
+    public List<Product> getOutOfStockProducts() {
+        List<Product> out = new ArrayList<>();
+        for (Product p : products) {
+            if (p.getQuantity() <= 0) out.add(p);
+        }
+        return out;
+    }
+
+    public List<Product> getLowStockProducts(int threshold) {
+        List<Product> low = new ArrayList<>();
+        for (Product p : products) {
+            if (p.getQuantity() <= threshold) low.add(p);
+        }
+        return low;
+    }
+
+    public List<String> getAllCategories() {
+        Set<String> cats = new LinkedHashSet<>();
+        for (Product p : products) {
+            if (p.getCategory() != null && !p.getCategory().isEmpty()) cats.add(p.getCategory());
+        }
+        return new ArrayList<>(cats);
+    }
+
+    public List<Product> getProductsByCategory(String category) {
+        List<Product> results = new ArrayList<>();
+        for (Product p : products) {
+            if (p.getCategory() != null && p.getCategory().equals(category)) results.add(p);
+        }
+        return results;
     }
     
     // Basic search

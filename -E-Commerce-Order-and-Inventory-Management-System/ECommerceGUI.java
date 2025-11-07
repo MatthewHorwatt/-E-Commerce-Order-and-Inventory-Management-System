@@ -11,11 +11,9 @@ public class ECommerceGUI extends JFrame {
     private java.util.List<Product> products = new ArrayList<>();
     private java.util.List<Order> orders = new ArrayList<>();
     private Map<String, Cart> customerCarts = new HashMap<>();
-    private List<Product> filteredProducts = new ArrayList<>();
-    private boolean isFiltered = false;
     
-    // User ID counter for chronological IDs
-    private int userIdCounter = 1;
+    // Managers
+    private ProductManager productManager;
     
     // Current user
     private User currentUser;
@@ -24,12 +22,18 @@ public class ECommerceGUI extends JFrame {
     // GUI Components
     private JTabbedPane tabbedPane;
     private JPanel loginPanel, productsPanel, cartPanel, ordersPanel, adminPanel;
+    private JLabel welcomeLabel;
+    private JButton logoutButton;
     
     // Tables
-    private JTable productsTable, cartTable, ordersTable;
-    private DefaultTableModel productsTableModel, cartTableModel, ordersTableModel;
+    private JTable productsTable, cartTable, ordersTable, adminOrdersTable;
+    private DefaultTableModel productsTableModel, cartTableModel, ordersTableModel, adminOrdersTableModel;
+    
+    // User management
+    private int userCounter = 2;
     
     public ECommerceGUI() {
+        this.productManager = new ProductManager();
         initializeSampleData();
         setupGUI();
         showLoginScreen();
@@ -39,20 +43,19 @@ public class ECommerceGUI extends JFrame {
         // Create sample users
         users.add(new User("admin1", "admin", "admin123", "Admin User", "admin"));
         users.add(new User("cust1", "john", "password", "John Customer", "customer"));
-        userIdCounter = 2; // Start after existing sample users
         
-        // Create sample products
-        products.add(new Product("p1", "Laptop", "Electronics", 999.99, 10));
-        products.add(new Product("p2", "Smartphone", "Electronics", 699.99, 25));
-        products.add(new Product("p3", "Book", "Education", 29.99, 100));
-        products.add(new Product("p4", "Headphones", "Electronics", 149.99, 15));
+        // Start user counter after sample users
+        userCounter = 2;
     }
     
     private void setupGUI() {
-        setTitle("E-Commerce Order and Inventory Manager - Module 1");
+        setTitle("E-Commerce Order and Inventory Manager");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setSize(800, 600);
+        setSize(1000, 750);
         setLocationRelativeTo(null);
+        setLayout(new BorderLayout());
+        
+        createHeaderPanel();
         
         tabbedPane = new JTabbedPane();
         createLoginPanel();
@@ -61,8 +64,33 @@ public class ECommerceGUI extends JFrame {
         createOrdersPanel();
         createAdminPanel();
         
-        add(tabbedPane);
+        add(tabbedPane, BorderLayout.CENTER);
         updateUIBasedOnRole();
+    }
+    
+    private void createHeaderPanel() {
+        JPanel headerPanel = new JPanel(new BorderLayout());
+        headerPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        
+        welcomeLabel = new JLabel("Welcome! Please login.");
+        welcomeLabel.setFont(new Font("Arial", Font.BOLD, 14));
+        
+        logoutButton = new JButton("Logout");
+        logoutButton.setVisible(false);
+        
+        logoutButton.addActionListener(e -> {
+            currentUser = null;
+            currentCart = null;
+            updateUIBasedOnRole();
+            updateWelcomeMessage();
+            tabbedPane.setSelectedIndex(0);
+            //JOptionPane.showMessageDialog(this, "Logged out successfully!");
+        });
+        
+        headerPanel.add(welcomeLabel, BorderLayout.WEST);
+        headerPanel.add(logoutButton, BorderLayout.EAST);
+        
+        add(headerPanel, BorderLayout.NORTH);
     }
     
     private void createLoginPanel() {
@@ -71,8 +99,12 @@ public class ECommerceGUI extends JFrame {
         gbc.insets = new Insets(10, 10, 10, 10);
         gbc.fill = GridBagConstraints.HORIZONTAL;
         
-        JLabel titleLabel = new JLabel("E-Commerce System Login", JLabel.CENTER);
+        JLabel titleLabel = new JLabel("E-Commerce System", JLabel.CENTER);
         titleLabel.setFont(new Font("Arial", Font.BOLD, 18));
+        
+        // Login section
+        JLabel loginTitle = new JLabel("Login", JLabel.CENTER);
+        loginTitle.setFont(new Font("Arial", Font.BOLD, 14));
         
         JLabel userLabel = new JLabel("Username:");
         JTextField userField = new JTextField(15);
@@ -81,34 +113,81 @@ public class ECommerceGUI extends JFrame {
         JPasswordField passField = new JPasswordField(15);
         
         JButton loginButton = new JButton("Login");
+        
+        // Registration section
+        JLabel regTitle = new JLabel("New User Registration", JLabel.CENTER);
+        regTitle.setFont(new Font("Arial", Font.BOLD, 14));
+        
+        JLabel regUserLabel = new JLabel("New Username:");
+        JTextField regUserField = new JTextField(15);
+        
+        JLabel regPassLabel = new JLabel("New Password:");
+        JPasswordField regPassField = new JPasswordField(15);
+        
+        JLabel regNameLabel = new JLabel("Full Name:");
+        JTextField regNameField = new JTextField(15);
+        
         JButton registerButton = new JButton("Register");
         JButton exitButton = new JButton("Exit");
         
+        // Layout
         gbc.gridwidth = 2;
         gbc.gridx = 0; gbc.gridy = 0;
         loginPanel.add(titleLabel, gbc);
         
+        gbc.gridy = 1;
+        loginPanel.add(loginTitle, gbc);
+        
         gbc.gridwidth = 1;
-        gbc.gridx = 0; gbc.gridy = 1;
+        gbc.gridx = 0; gbc.gridy = 2;
         loginPanel.add(userLabel, gbc);
         
-        gbc.gridx = 1; gbc.gridy = 1;
+        gbc.gridx = 1; gbc.gridy = 2;
         loginPanel.add(userField, gbc);
         
-        gbc.gridx = 0; gbc.gridy = 2;
+        gbc.gridx = 0; gbc.gridy = 3;
         loginPanel.add(passLabel, gbc);
         
-        gbc.gridx = 1; gbc.gridy = 2;
+        gbc.gridx = 1; gbc.gridy = 3;
         loginPanel.add(passField, gbc);
         
-        gbc.gridx = 0; gbc.gridy = 3;
+        gbc.gridx = 0; gbc.gridy = 4;
         loginPanel.add(loginButton, gbc);
         
-        gbc.gridx = 1; gbc.gridy = 3;
+        // Separator
+        JSeparator separator = new JSeparator();
+        gbc.gridwidth = 2;
+        gbc.gridx = 0; gbc.gridy = 5;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        loginPanel.add(separator, gbc);
+        
+        // Registration Section
+        gbc.gridy = 6;
+        loginPanel.add(regTitle, gbc);
+        
+        gbc.gridwidth = 1;
+        gbc.gridx = 0; gbc.gridy = 7;
+        loginPanel.add(regUserLabel, gbc);
+        
+        gbc.gridx = 1; gbc.gridy = 7;
+        loginPanel.add(regUserField, gbc);
+        
+        gbc.gridx = 0; gbc.gridy = 8;
+        loginPanel.add(regPassLabel, gbc);
+        
+        gbc.gridx = 1; gbc.gridy = 8;
+        loginPanel.add(regPassField, gbc);
+        
+        gbc.gridx = 0; gbc.gridy = 9;
+        loginPanel.add(regNameLabel, gbc);
+        
+        gbc.gridx = 1; gbc.gridy = 9;
+        loginPanel.add(regNameField, gbc);
+        
+        gbc.gridx = 0; gbc.gridy = 10;
         loginPanel.add(registerButton, gbc);
         
-        gbc.gridwidth = 2;
-        gbc.gridx = 0; gbc.gridy = 4;
+        gbc.gridx = 1; gbc.gridy = 10;
         loginPanel.add(exitButton, gbc);
         
         // Login button action
@@ -119,7 +198,11 @@ public class ECommerceGUI extends JFrame {
             User user = authenticate(username, password);
             if (user != null) {
                 currentUser = user;
+                /*JOptionPane.showMessageDialog(this, 
+                    "Login successful! Welcome " + user.getName() + 
+                    " (" + ("customer".equals(user.getRole()) ? "Customer" : "Administrator") + ")");*/
                 updateUIBasedOnRole();
+                updateWelcomeMessage();
                 userField.setText("");
                 passField.setText("");
             } else {
@@ -127,240 +210,73 @@ public class ECommerceGUI extends JFrame {
             }
         });
         
-        // Register button action
-        registerButton.addActionListener(e -> showRegistrationDialog());
+        // Registration button action
+        registerButton.addActionListener(e -> {
+            String username = regUserField.getText().trim();
+            String password = new String(regPassField.getPassword());
+            String name = regNameField.getText().trim();
+            
+            if (registerNewUser(username, password, name)) {
+                regUserField.setText("");
+                regPassField.setText("");
+                regNameField.setText("");
+            }
+        });
         
         exitButton.addActionListener(e -> System.exit(0));
         
         tabbedPane.addTab("Login", loginPanel);
     }
     
-    private void showRegistrationDialog() {
-        JDialog regDialog = new JDialog(this, "Register New Customer", true);
-        regDialog.setLayout(new GridBagLayout());
-        regDialog.setSize(400, 300);
-        regDialog.setLocationRelativeTo(this);
-        
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.insets = new Insets(10, 10, 10, 10);
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        
-        JLabel titleLabel = new JLabel("Customer Registration", JLabel.CENTER);
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 16));
-        
-        JLabel nameLabel = new JLabel("Full Name:");
-        JTextField nameField = new JTextField(20);
-        
-        JLabel userLabel = new JLabel("Username:");
-        JTextField userField = new JTextField(20);
-        
-        JLabel passLabel = new JLabel("Password:");
-        JPasswordField passField = new JPasswordField(20);
-        
-        JLabel confirmPassLabel = new JLabel("Confirm Password:");
-        JPasswordField confirmPassField = new JPasswordField(20);
-        
-        JButton submitButton = new JButton("Register");
-        JButton cancelButton = new JButton("Cancel");
-        
-        gbc.gridwidth = 2;
-        gbc.gridx = 0; gbc.gridy = 0;
-        regDialog.add(titleLabel, gbc);
-        
-        gbc.gridwidth = 1;
-        gbc.gridx = 0; gbc.gridy = 1;
-        regDialog.add(nameLabel, gbc);
-        gbc.gridx = 1;
-        regDialog.add(nameField, gbc);
-        
-        gbc.gridx = 0; gbc.gridy = 2;
-        regDialog.add(userLabel, gbc);
-        gbc.gridx = 1;
-        regDialog.add(userField, gbc);
-        
-        gbc.gridx = 0; gbc.gridy = 3;
-        regDialog.add(passLabel, gbc);
-        gbc.gridx = 1;
-        regDialog.add(passField, gbc);
-        
-        gbc.gridx = 0; gbc.gridy = 4;
-        regDialog.add(confirmPassLabel, gbc);
-        gbc.gridx = 1;
-        regDialog.add(confirmPassField, gbc);
-        
-        gbc.gridx = 0; gbc.gridy = 5;
-        regDialog.add(submitButton, gbc);
-        gbc.gridx = 1;
-        regDialog.add(cancelButton, gbc);
-        
-        // Submit button action
-        submitButton.addActionListener(e -> {
-            String name = nameField.getText().trim();
-            String username = userField.getText().trim();
-            String password = new String(passField.getPassword());
-            String confirmPassword = new String(confirmPassField.getPassword());
-            
-            // Validation
-            if (name.isEmpty() || username.isEmpty() || password.isEmpty()) {
-                JOptionPane.showMessageDialog(regDialog, "All fields are required!", "Validation Error", JOptionPane.ERROR_MESSAGE);
-                return;
-            }
-            
-            if (username.length() < 3) {
-                JOptionPane.showMessageDialog(regDialog, "Username must be at least 3 characters!", "Validation Error", JOptionPane.ERROR_MESSAGE);
-                return;
-            }
-            
-            if (password.length() < 4) {
-                JOptionPane.showMessageDialog(regDialog, "Password must be at least 4 characters!", "Validation Error", JOptionPane.ERROR_MESSAGE);
-                return;
-            }
-            
-            if (!password.equals(confirmPassword)) {
-                JOptionPane.showMessageDialog(regDialog, "Passwords do not match!", "Validation Error", JOptionPane.ERROR_MESSAGE);
-                return;
-            }
-            
-            // Check if username already exists
-            if (isUsernameExists(username)) {
-                JOptionPane.showMessageDialog(regDialog, "Username already exists! Please choose another.", "Registration Error", JOptionPane.ERROR_MESSAGE);
-                return;
-            }
-            
-            // Create new user with chronological ID
-            String userId = "cust" + userIdCounter++;
-            User newUser = new User(userId, username, password, name, "customer");
-            users.add(newUser);
-            
-            JOptionPane.showMessageDialog(regDialog, 
-                "Registration successful!\nYour User ID: " + userId + "\nYou can now login with your username and password.",
-                "Success", JOptionPane.INFORMATION_MESSAGE);
-            
-            regDialog.dispose();
-        });
-        
-        cancelButton.addActionListener(e -> regDialog.dispose());
-        
-        regDialog.setVisible(true);
-    }
-    
-    private boolean isUsernameExists(String username) {
-        for (User user : users) {
-            if (user.getUsername().equalsIgnoreCase(username)) {
-                return true;
-            }
-        }
-        return false;
-    }
-    
     private void createProductsPanel() {
-    productsPanel = new JPanel(new BorderLayout());
-    
-    // Table setup
-    String[] columns = {"ID", "Name", "Category", "Price", "Stock"};
-    productsTableModel = new DefaultTableModel(columns, 0);
-    productsTable = new JTable(productsTableModel);
-    
-    // Search panel at the top
-    JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-    searchPanel.setBorder(BorderFactory.createTitledBorder("Search Products"));
-    
-    JLabel searchLabel = new JLabel("Search:");
-    JTextField searchField = new JTextField(20);
-    JButton searchButton = new JButton("Search");
-    JButton clearSearchButton = new JButton("Clear Search");
-    
-    searchPanel.add(searchLabel);
-    searchPanel.add(searchField);
-    searchPanel.add(searchButton);
-    searchPanel.add(clearSearchButton);
-    
-    // Sorting panel
-    JPanel sortPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-    sortPanel.setBorder(BorderFactory.createTitledBorder("Sort Products"));
-    
-    JLabel sortLabel = new JLabel("Sort by:");
-    String[] sortOptions = {"Name", "Category", "Price", "Quantity"};
-    JComboBox<String> sortComboBox = new JComboBox<>(sortOptions);
-    
-    JRadioButton ascendingRadio = new JRadioButton("Ascending", true);
-    JRadioButton descendingRadio = new JRadioButton("Descending");
-    ButtonGroup orderGroup = new ButtonGroup();
-    orderGroup.add(ascendingRadio);
-    orderGroup.add(descendingRadio);
-    
-    JButton sortButton = new JButton("Sort");
-    JButton resetButton = new JButton("Reset Order");
-    
-    sortPanel.add(sortLabel);
-    sortPanel.add(sortComboBox);
-    sortPanel.add(ascendingRadio);
-    sortPanel.add(descendingRadio);
-    sortPanel.add(sortButton);
-    sortPanel.add(resetButton);
-    
-    // Bottom control panel
-    JPanel bottomPanel = new JPanel(new FlowLayout());
-    JButton refreshButton = new JButton("Refresh Products");
-    JButton addToCartButton = new JButton("Add to Cart");
-    
-    bottomPanel.add(refreshButton);
-    bottomPanel.add(addToCartButton);
-    
-    // Combine panels
-    JPanel topControls = new JPanel(new BorderLayout());
-    topControls.add(searchPanel, BorderLayout.NORTH);
-    topControls.add(sortPanel, BorderLayout.CENTER);
-    
-    JPanel controlPanel = new JPanel(new BorderLayout());
-    controlPanel.add(topControls, BorderLayout.NORTH);
-    controlPanel.add(bottomPanel, BorderLayout.SOUTH);
-    
-    productsPanel.add(new JScrollPane(productsTable), BorderLayout.CENTER);
-    productsPanel.add(controlPanel, BorderLayout.SOUTH);
-    
-    // Search button actions
-    searchButton.addActionListener(e -> {
-        String searchTerm = searchField.getText();
-        searchProducts(searchTerm);
+        productsPanel = new JPanel(new BorderLayout());
         
-        /*if (isFiltered) {
-            JOptionPane.showMessageDialog(this, 
-                "Found " + filteredProducts.size() + " product(s) matching: " + searchTerm);
-        }*/
-    });
-    
-    clearSearchButton.addActionListener(e -> {
-        searchField.setText("");
-        isFiltered = false;
-        filteredProducts.clear();
+        // Table setup
+        String[] columns = {"ID", "Name", "Category", "Price", "Stock"};
+        productsTableModel = new DefaultTableModel(columns, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+        productsTable = new JTable(productsTableModel);
+        productsTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        
+        // Enhanced control panel
+        JPanel controlPanel = new JPanel(new FlowLayout());
+        JButton refreshButton = new JButton("Refresh Products");
+        JButton addToCartButton = new JButton("Add to Cart");
+        
+        // Sorting buttons
+        JButton sortAscButton = new JButton("Sort Price ↑");
+        JButton sortDescButton = new JButton("Sort Price ↓");
+        JButton searchButton = new JButton("Search");
+        JButton filterCategoryButton = new JButton("Filter by Category");
+        
+        controlPanel.add(refreshButton);
+        controlPanel.add(addToCartButton);
+        controlPanel.add(new JSeparator(SwingConstants.VERTICAL));
+        controlPanel.add(sortAscButton);
+        controlPanel.add(sortDescButton);
+        controlPanel.add(searchButton);
+        controlPanel.add(filterCategoryButton);
+        
+        productsPanel.add(new JScrollPane(productsTable), BorderLayout.CENTER);
+        productsPanel.add(controlPanel, BorderLayout.SOUTH);
+        
+        // Button actions
+        refreshButton.addActionListener(e -> refreshProductsTable());
+        addToCartButton.addActionListener(e -> addSelectedToCart());
+        sortAscButton.addActionListener(e -> sortProductsByPrice(true));
+        sortDescButton.addActionListener(e -> sortProductsByPrice(false));
+        searchButton.addActionListener(e -> searchProducts());
+        filterCategoryButton.addActionListener(e -> filterByCategory());
+        
+        tabbedPane.addTab("Products", productsPanel);
+        
+        // Initial load
         refreshProductsTable();
-        
-    });
-    
-    // Allow Enter key to search
-    searchField.addActionListener(e -> searchButton.doClick());
-    
-    // Sort button actions
-    sortButton.addActionListener(e -> {
-        String criterion = (String) sortComboBox.getSelectedItem();
-        boolean ascending = ascendingRadio.isSelected();
-        sortProducts(criterion, ascending);
-        
-    });
-    
-    resetButton.addActionListener(e -> {
-        isFiltered = false;
-        filteredProducts.clear();
-        refreshProductsTable();
-        
-    });
-    
-    refreshButton.addActionListener(e -> refreshProductsTable());
-    addToCartButton.addActionListener(e -> addSelectedToCart());
-    
-    tabbedPane.addTab("Products", productsPanel);
-}
+    }
     
     private void createCartPanel() {
         cartPanel = new JPanel(new BorderLayout());
@@ -378,6 +294,7 @@ public class ECommerceGUI extends JFrame {
         JButton checkoutButton = new JButton("Checkout");
         
         JLabel totalLabel = new JLabel("Total: $0.00");
+        totalLabel.setFont(new Font("Arial", Font.BOLD, 14));
         
         controlPanel.add(refreshCartButton);
         controlPanel.add(removeItemButton);
@@ -390,9 +307,9 @@ public class ECommerceGUI extends JFrame {
         
         // Button actions
         refreshCartButton.addActionListener(e -> refreshCartTable(totalLabel));
-        removeItemButton.addActionListener(e -> removeSelectedFromCart());
-        clearCartButton.addActionListener(e -> clearCart());
-        checkoutButton.addActionListener(e -> checkout());
+        removeItemButton.addActionListener(e -> removeSelectedFromCart(totalLabel));
+        clearCartButton.addActionListener(e -> clearCart(totalLabel));
+        checkoutButton.addActionListener(e -> checkout(totalLabel));
         
         tabbedPane.addTab("Shopping Cart", cartPanel);
     }
@@ -402,7 +319,12 @@ public class ECommerceGUI extends JFrame {
         
         // Table setup
         String[] columns = {"Order ID", "Items", "Total", "Status", "Date"};
-        ordersTableModel = new DefaultTableModel(columns, 0);
+        ordersTableModel = new DefaultTableModel(columns, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
         ordersTable = new JTable(ordersTableModel);
         
         JButton refreshOrdersButton = new JButton("Refresh Orders");
@@ -415,87 +337,407 @@ public class ECommerceGUI extends JFrame {
     }
     
     private void createAdminPanel() {
-    adminPanel = new JPanel(new BorderLayout());
-    
-    // Top section: Add product form
-    JPanel formPanel = new JPanel(new GridLayout(5, 2, 5, 5));
-    JTextField idField = new JTextField();
-    JTextField nameField = new JTextField();
-    JTextField categoryField = new JTextField();
-    JTextField priceField = new JTextField();
-    JTextField quantityField = new JTextField();
-    
-    formPanel.add(new JLabel("Product ID:"));
-    formPanel.add(idField);
-    formPanel.add(new JLabel("Name:"));
-    formPanel.add(nameField);
-    formPanel.add(new JLabel("Category:"));
-    formPanel.add(categoryField);
-    formPanel.add(new JLabel("Price:"));
-    formPanel.add(priceField);
-    formPanel.add(new JLabel("Quantity:"));
-    formPanel.add(quantityField);
-    
-    JButton addProductButton = new JButton("Add Product");
-    JButton viewProductsButton = new JButton("View All Products");
-    
-    JPanel buttonPanel = new JPanel();
-    buttonPanel.add(addProductButton);
-    buttonPanel.add(viewProductsButton);
-    
-    // Search panel
-    JPanel searchPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-    searchPanel.setBorder(BorderFactory.createTitledBorder("Search Products"));
-    
-    JLabel searchLabel = new JLabel("Search:");
-    JTextField adminSearchField = new JTextField(20);
-    JButton adminSearchButton = new JButton("Search");
-    JButton adminClearSearchButton = new JButton("Clear Search");
-    
-    searchPanel.add(searchLabel);
-    searchPanel.add(adminSearchField);
-    searchPanel.add(adminSearchButton);
-    searchPanel.add(adminClearSearchButton);
-    
-    // Sorting controls
-    JPanel sortPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-    sortPanel.setBorder(BorderFactory.createTitledBorder("Sort Products"));
-    
-    JLabel sortLabel = new JLabel("Sort by:");
-    String[] sortOptions = {"Name", "Category", "Price", "Quantity"};
-    JComboBox<String> sortComboBox = new JComboBox<>(sortOptions);
-    
-    JRadioButton ascendingRadio = new JRadioButton("Ascending", true);
-    JRadioButton descendingRadio = new JRadioButton("Descending");
-    ButtonGroup orderGroup = new ButtonGroup();
-    orderGroup.add(ascendingRadio);
-    orderGroup.add(descendingRadio);
-    
-    JButton sortButton = new JButton("Sort");
-    JButton resetButton = new JButton("Reset Order");
-    
-    sortPanel.add(sortLabel);
-    sortPanel.add(sortComboBox);
-    sortPanel.add(ascendingRadio);
-    sortPanel.add(descendingRadio);
-    sortPanel.add(sortButton);
-    sortPanel.add(resetButton);
-    
-    // Bottom section: Product table
-    String[] columns = {"ID", "Name", "Category", "Price", "Stock"};
-    DefaultTableModel adminProductsTableModel = new DefaultTableModel(columns, 0);
-    JTable adminProductsTable = new JTable(adminProductsTableModel);
-    JScrollPane tableScrollPane = new JScrollPane(adminProductsTable);
-    
-    // Refresh admin table helper
-    Runnable refreshAdminTable = () -> {
-        adminProductsTableModel.setRowCount(0);
+        adminPanel = new JPanel(new BorderLayout());
         
-        // Determine which list to display
-        List<Product> displayList = isFiltered ? filteredProducts : products;
+        // Create tabbed pane for admin sections
+        JTabbedPane adminTabs = new JTabbedPane();
         
-        for (Product product : displayList) {
-            adminProductsTableModel.addRow(new Object[]{
+        // 1. Product Management Tab
+        JPanel productMgmtPanel = createProductManagementPanel();
+        adminTabs.addTab("Product Management", productMgmtPanel);
+        
+        // 2. Order Management Tab
+        JPanel orderMgmtPanel = createOrderManagementPanel();
+        adminTabs.addTab("Order Management", orderMgmtPanel);
+        
+        // 3. Reports Tab
+        JPanel reportsPanel = createReportsPanel();
+        adminTabs.addTab("Reports", reportsPanel);
+        
+        adminPanel.add(adminTabs, BorderLayout.CENTER);
+        tabbedPane.addTab("Admin", adminPanel);
+    }
+    
+    private JPanel createProductManagementPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        
+        // Form panel for Add/Update
+        JPanel formPanel = new JPanel(new GridLayout(6, 2, 5, 5));
+        formPanel.setBorder(BorderFactory.createTitledBorder("Product Form"));
+        
+        JTextField idField = new JTextField();
+        JTextField nameField = new JTextField();
+        JTextField categoryField = new JTextField();
+        JTextField priceField = new JTextField();
+        JTextField quantityField = new JTextField();
+        
+        formPanel.add(new JLabel("Product ID:"));
+        formPanel.add(idField);
+        formPanel.add(new JLabel("Name:"));
+        formPanel.add(nameField);
+        formPanel.add(new JLabel("Category:"));
+        formPanel.add(categoryField);
+        formPanel.add(new JLabel("Price:"));
+        formPanel.add(priceField);
+        formPanel.add(new JLabel("Quantity:"));
+        formPanel.add(quantityField);
+        
+        // Button panel
+        JPanel buttonPanel = new JPanel(new FlowLayout());
+        JButton addProductButton = new JButton("Add Product");
+        JButton updateProductButton = new JButton("Update Product");
+        JButton deleteProductButton = new JButton("Delete Product");
+        JButton clearFormButton = new JButton("Clear Form");
+        
+        buttonPanel.add(addProductButton);
+        buttonPanel.add(updateProductButton);
+        buttonPanel.add(deleteProductButton);
+        buttonPanel.add(clearFormButton);
+        
+        // Products table for admin
+        String[] adminColumns = {"ID", "Name", "Category", "Price", "Stock"};
+        DefaultTableModel adminTableModel = new DefaultTableModel(adminColumns, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+        JTable adminTable = new JTable(adminTableModel);
+        
+        JButton refreshAdminButton = new JButton("Refresh Table");
+        
+        JPanel adminTablePanel = new JPanel(new BorderLayout());
+        adminTablePanel.add(new JScrollPane(adminTable), BorderLayout.CENTER);
+        adminTablePanel.add(refreshAdminButton, BorderLayout.SOUTH);
+        
+        // Main admin layout
+        JPanel topPanel = new JPanel(new BorderLayout());
+        topPanel.add(formPanel, BorderLayout.NORTH);
+        topPanel.add(buttonPanel, BorderLayout.CENTER);
+        
+        panel.add(topPanel, BorderLayout.NORTH);
+        panel.add(adminTablePanel, BorderLayout.CENTER);
+        
+        // Button actions
+        addProductButton.addActionListener(e -> addProductFromForm(idField, nameField, categoryField, priceField, quantityField, adminTableModel));
+        updateProductButton.addActionListener(e -> updateProductFromForm(idField, nameField, categoryField, priceField, quantityField, adminTableModel));
+        deleteProductButton.addActionListener(e -> deleteProductFromForm(idField, adminTableModel));
+        clearFormButton.addActionListener(e -> clearFields(idField, nameField, categoryField, priceField, quantityField));
+        refreshAdminButton.addActionListener(e -> refreshAdminTable(adminTableModel));
+        
+        // Table selection listener
+        adminTable.getSelectionModel().addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting() && adminTable.getSelectedRow() != -1) {
+                int selectedRow = adminTable.getSelectedRow();
+                idField.setText(adminTableModel.getValueAt(selectedRow, 0).toString());
+                nameField.setText(adminTableModel.getValueAt(selectedRow, 1).toString());
+                categoryField.setText(adminTableModel.getValueAt(selectedRow, 2).toString());
+                priceField.setText(adminTableModel.getValueAt(selectedRow, 3).toString().replace("$", ""));
+                quantityField.setText(adminTableModel.getValueAt(selectedRow, 4).toString());
+            }
+        });
+        
+        // Initial load
+        refreshAdminTable(adminTableModel);
+        
+        return panel;
+    }
+    
+    private JPanel createOrderManagementPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        
+        // Orders table
+        String[] columns = {"Order ID", "Customer", "Items", "Total", "Status", "Date"};
+        adminOrdersTableModel = new DefaultTableModel(columns, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+        adminOrdersTable = new JTable(adminOrdersTableModel);
+        
+        // Control panel
+        JPanel controlPanel = new JPanel(new FlowLayout());
+        JButton refreshButton = new JButton("Refresh Orders");
+        JButton markProcessedButton = new JButton("Mark as Processed");
+        JButton markShippedButton = new JButton("Mark as Shipped");
+        JButton markDeliveredButton = new JButton("Mark as Delivered");
+        JButton viewDetailsButton = new JButton("View Details");
+        
+        controlPanel.add(refreshButton);
+        controlPanel.add(markProcessedButton);
+        controlPanel.add(markShippedButton);
+        controlPanel.add(markDeliveredButton);
+        controlPanel.add(viewDetailsButton);
+        
+        panel.add(new JScrollPane(adminOrdersTable), BorderLayout.CENTER);
+        panel.add(controlPanel, BorderLayout.SOUTH);
+        
+        // Button actions
+        refreshButton.addActionListener(e -> refreshAdminOrdersTable());
+        markProcessedButton.addActionListener(e -> updateOrderStatus("PROCESSED"));
+        markShippedButton.addActionListener(e -> updateOrderStatus("SHIPPED"));
+        markDeliveredButton.addActionListener(e -> updateOrderStatus("DELIVERED"));
+        viewDetailsButton.addActionListener(e -> viewOrderDetails());
+        
+        // Initial load
+        refreshAdminOrdersTable();
+        
+        return panel;
+    }
+    
+    private JPanel createReportsPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        
+        JTextArea reportArea = new JTextArea();
+        reportArea.setEditable(false);
+        reportArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        
+        JButton generateButton = new JButton("Generate Reports");
+        generateButton.addActionListener(e -> generateReports(reportArea));
+        
+        panel.add(new JScrollPane(reportArea), BorderLayout.CENTER);
+        panel.add(generateButton, BorderLayout.SOUTH);
+        
+        return panel;
+    }
+    
+    // ========== ADMIN METHODS ==========
+    
+    private void refreshAdminOrdersTable() {
+        adminOrdersTableModel.setRowCount(0);
+        for (Order order : orders) {
+            User customer = getUserById(order.getCustomerId());
+            String customerName = customer != null ? customer.getName() : "Unknown";
+            
+            adminOrdersTableModel.addRow(new Object[]{
+                order.getOrderId(),
+                customerName,
+                order.getItems().size() + " items",
+                String.format("$%.2f", order.getTotalPrice()),
+                order.getStatus(),
+                order.getTimestamp()
+            });
+        }
+    }
+    
+    private void updateOrderStatus(String status) {
+        int selectedRow = adminOrdersTable.getSelectedRow();
+        if (selectedRow == -1) {
+            JOptionPane.showMessageDialog(this, "Please select an order first!");
+            return;
+        }
+        
+        String orderId = (String) adminOrdersTableModel.getValueAt(selectedRow, 0);
+        Order order = getOrderById(orderId);
+        
+        if (order != null) {
+            order.setStatus(status);
+            refreshAdminOrdersTable();
+            //JOptionPane.showMessageDialog(this, "Order status updated to: " + status);
+        }
+    }
+    
+    private void viewOrderDetails() {
+        int selectedRow = adminOrdersTable.getSelectedRow();
+        if (selectedRow == -1) {
+            JOptionPane.showMessageDialog(this, "Please select an order first!");
+            return;
+        }
+        
+        String orderId = (String) adminOrdersTableModel.getValueAt(selectedRow, 0);
+        Order order = getOrderById(orderId);
+        
+        if (order != null) {
+            StringBuilder details = new StringBuilder();
+            details.append("Order ID: ").append(order.getOrderId()).append("\n");
+            details.append("Customer: ").append(getUserById(order.getCustomerId()).getName()).append("\n");
+            details.append("Status: ").append(order.getStatus()).append("\n");
+            details.append("Date: ").append(order.getTimestamp()).append("\n");
+            details.append("Total: $").append(String.format("%.2f", order.getTotalPrice())).append("\n\n");
+            details.append("Items:\n");
+            
+            for (Cart.CartItem item : order.getItems()) {
+                details.append(String.format("  - %s (Qty: %d) @ $%.2f = $%.2f\n",
+                    item.getProductName(), item.getQuantity(), item.getPrice(), item.getTotalPrice()));
+            }
+            
+            JOptionPane.showMessageDialog(this, details.toString(), "Order Details", JOptionPane.INFORMATION_MESSAGE);
+        }
+    }
+    
+    private void generateReports(JTextArea reportArea) {
+        StringBuilder report = new StringBuilder();
+        report.append("========== ADMIN REPORTS ==========\n\n");
+        
+        // 1. Out of Stock Products
+        report.append("1. OUT OF STOCK PRODUCTS:\n");
+        List<Product> outOfStock = productManager.getOutOfStockProducts();
+        if (outOfStock.isEmpty()) {
+            report.append("   No products out of stock.\n");
+        } else {
+            for (Product p : outOfStock) {
+                report.append(String.format("   - %s (ID: %s)\n", p.getName(), p.getId()));
+            }
+        }
+        report.append("\n");
+        
+        // 2. Total Orders
+        report.append("2. TOTAL ORDERS PLACED: ").append(orders.size()).append("\n\n");
+        
+        // 3. Orders by Status
+        report.append("3. ORDERS BY STATUS:\n");
+        Map<String, Integer> statusCount = new HashMap<>();
+        for (Order order : orders) {
+            statusCount.put(order.getStatus(), statusCount.getOrDefault(order.getStatus(), 0) + 1);
+        }
+        for (Map.Entry<String, Integer> entry : statusCount.entrySet()) {
+            report.append(String.format("   - %s: %d\n", entry.getKey(), entry.getValue()));
+        }
+        report.append("\n");
+        
+        // 4. Most Frequently Ordered Products (using frequency map)
+        report.append("4. MOST FREQUENTLY ORDERED PRODUCTS:\n");
+        Map<String, Integer> productFrequency = new HashMap<>();
+        
+        for (Order order : orders) {
+            for (Cart.CartItem item : order.getItems()) {
+                String productName = item.getProductName();
+                productFrequency.put(productName, productFrequency.getOrDefault(productName, 0) + item.getQuantity());
+            }
+        }
+        
+        if (productFrequency.isEmpty()) {
+            report.append("   No orders placed yet.\n");
+        } else {
+            // Sort by frequency
+            List<Map.Entry<String, Integer>> sortedProducts = new ArrayList<>(productFrequency.entrySet());
+            sortedProducts.sort((a, b) -> b.getValue().compareTo(a.getValue()));
+            
+            int count = 0;
+            for (Map.Entry<String, Integer> entry : sortedProducts) {
+                if (count >= 5) break; // Show top 5
+                report.append(String.format("   %d. %s - %d units sold\n", ++count, entry.getKey(), entry.getValue()));
+            }
+        }
+        report.append("\n");
+        
+        // 5. Total Revenue
+        double totalRevenue = 0;
+        for (Order order : orders) {
+            totalRevenue += order.getTotalPrice();
+        }
+        report.append(String.format("5. TOTAL REVENUE: $%.2f\n\n", totalRevenue));
+        
+        // 6. Low Stock Alert
+        report.append("6. LOW STOCK ALERT (≤5 items):\n");
+        List<Product> lowStock = productManager.getLowStockProducts(5);
+        if (lowStock.isEmpty()) {
+            report.append("   No low stock products.\n");
+        } else {
+            for (Product p : lowStock) {
+                report.append(String.format("   - %s: %d units remaining\n", p.getName(), p.getQuantity()));
+            }
+        }
+        report.append("\n");
+        
+        report.append("========== END OF REPORTS ==========\n");
+        
+        reportArea.setText(report.toString());
+        reportArea.setCaretPosition(0);
+    }
+    
+    private Order getOrderById(String orderId) {
+        for (Order order : orders) {
+            if (order.getOrderId().equals(orderId)) {
+                return order;
+            }
+        }
+        return null;
+    }
+    
+    private User getUserById(String userId) {
+        for (User user : users) {
+            if (user.getId().equals(userId)) {
+                return user;
+            }
+        }
+        return null;
+    }
+    
+    // ========== PRODUCT SORTING & FILTERING ==========
+    
+    private void sortProductsByPrice(boolean ascending) {
+        try {
+            List<Product> sortedProducts;
+            if (ascending) {
+                sortedProducts = productManager.getProductsSortedByPriceAsc();
+            } else {
+                sortedProducts = productManager.getProductsSortedByPriceDesc();
+            }
+            
+            refreshProductsTableWithList(sortedProducts);
+            
+            String order = ascending ? "lowest to highest" : "highest to lowest";
+            /*JOptionPane.showMessageDialog(this, 
+                "Products sorted by price (" + order + ") using Heap sort!\n" +
+                "Found " + sortedProducts.size() + " products.",
+                "Sort Complete", JOptionPane.INFORMATION_MESSAGE);*/
+                
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, 
+                "Error during sorting: " + e.getMessage(), 
+                "Sort Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+    
+    private void searchProducts() {
+        String query = JOptionPane.showInputDialog(this, "Enter product name to search:");
+        if (query != null && !query.trim().isEmpty()) {
+            List<Product> results = productManager.searchProductsByName(query.trim());
+            refreshProductsTableWithList(results);
+            
+            if (results.isEmpty()) {
+                JOptionPane.showMessageDialog(this, 
+                    "No products found matching: '" + query + "'", 
+                    "Search Results", JOptionPane.INFORMATION_MESSAGE);
+            } else {
+                JOptionPane.showMessageDialog(this, 
+                    "Found " + results.size() + " product(s) matching: '" + query + "'", 
+                    "Search Results", JOptionPane.INFORMATION_MESSAGE);
+            }
+        }
+    }
+    
+    private void filterByCategory() {
+        List<String> categories = productManager.getAllCategories();
+        if (categories.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "No categories available!");
+            return;
+        }
+        
+        String selectedCategory = (String) JOptionPane.showInputDialog(this,
+            "Select category to filter:",
+            "Filter by Category",
+            JOptionPane.QUESTION_MESSAGE,
+            null,
+            categories.toArray(),
+            categories.get(0));
+        
+        if (selectedCategory != null) {
+            List<Product> results = productManager.getProductsByCategory(selectedCategory);
+            refreshProductsTableWithList(results);
+            
+            JOptionPane.showMessageDialog(this, 
+                "Showing " + results.size() + " product(s) in category: " + selectedCategory,
+                "Filter Results", JOptionPane.INFORMATION_MESSAGE);
+        }
+    }
+    
+    private void refreshProductsTableWithList(List<Product> productList) {
+        productsTableModel.setRowCount(0);
+        for (Product product : productList) {
+            productsTableModel.addRow(new Object[]{
                 product.getId(),
                 product.getName(),
                 product.getCategory(),
@@ -503,215 +745,114 @@ public class ECommerceGUI extends JFrame {
                 product.getQuantity()
             });
         }
-    };
+    }
     
-    // Combine all sections - Fixed layout to prevent overlap
-    JPanel controlsPanel = new JPanel(new BorderLayout());
-    controlsPanel.add(searchPanel, BorderLayout.NORTH);
-    controlsPanel.add(sortPanel, BorderLayout.CENTER);
+    // ========== CART METHODS ==========
     
-    JPanel topSection = new JPanel(new BorderLayout());
-    topSection.add(formPanel, BorderLayout.NORTH);
-    topSection.add(buttonPanel, BorderLayout.CENTER);
-    topSection.add(controlsPanel, BorderLayout.SOUTH);
-    
-    adminPanel.add(topSection, BorderLayout.NORTH);
-    adminPanel.add(tableScrollPane, BorderLayout.CENTER);
-    
-    // Button actions
-    addProductButton.addActionListener(e -> {
-        try {
-            String id = idField.getText();
-            String name = nameField.getText();
-            String category = categoryField.getText();
-            double price = Double.parseDouble(priceField.getText());
-            int quantity = Integer.parseInt(quantityField.getText());
-            
-            if (id.isEmpty() || name.isEmpty() || category.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "Please fill all fields!");
-                return;
-            }
-            
-            Product product = new Product(id, name, category, price, quantity);
-            products.add(product);
-            
-            
-            clearFields(idField, nameField, categoryField, priceField, quantityField);
-            refreshProductsTable();
-            refreshAdminTable.run();
-            
-        } catch (NumberFormatException ex) {
-            JOptionPane.showMessageDialog(this, "Please enter valid numbers for price and quantity!", 
-                "Input Error", JOptionPane.ERROR_MESSAGE);
+    private void addSelectedToCart() {
+        if (!canAddToCart()) {
+            return;
         }
-    });
-    
-    viewProductsButton.addActionListener(e -> {
-        StringBuilder sb = new StringBuilder("All Products:\n\n");
-        for (Product p : products) {
-            sb.append(p.toString()).append("\n");
+        
+        int selectedRow = productsTable.getSelectedRow();
+        if (selectedRow == -1) {
+            JOptionPane.showMessageDialog(this, "Please select a product first!");
+            return;
         }
-        JOptionPane.showMessageDialog(this, sb.toString(), "All Products", JOptionPane.INFORMATION_MESSAGE);
-    });
-    
-    // Admin search actions
-    adminSearchButton.addActionListener(e -> {
-        String searchTerm = adminSearchField.getText();
-        searchProducts(searchTerm);
-        refreshAdminTable.run();
         
-        /*if (isFiltered) {
-            JOptionPane.showMessageDialog(this, 
-                "Found " + filteredProducts.size() + " product(s) matching: " + searchTerm);
-        }*/
-    });
-    
-    adminClearSearchButton.addActionListener(e -> {
-        adminSearchField.setText("");
-        isFiltered = false;
-        filteredProducts.clear();
-        refreshProductsTable();
-        refreshAdminTable.run();
+        String productId = (String) productsTableModel.getValueAt(selectedRow, 0);
+        Product product = productManager.getProductById(productId);
         
-    });
-    
-    // Allow Enter key to search
-    adminSearchField.addActionListener(e -> adminSearchButton.doClick());
-    
-    // Sort actions
-    sortButton.addActionListener(e -> {
-        String criterion = (String) sortComboBox.getSelectedItem();
-        boolean ascending = ascendingRadio.isSelected();
-        sortProducts(criterion, ascending);
-        refreshAdminTable.run();
-        
-    });
-    
-    resetButton.addActionListener(e -> {
-        isFiltered = false;
-        filteredProducts.clear();
-        refreshProductsTable();
-        refreshAdminTable.run();
-        
-    });
-    
-    // Initial table load
-    refreshAdminTable.run();
-    
-    tabbedPane.addTab("Admin", adminPanel);
-}
-    private void sortProducts(String criterion, boolean ascending) {
-    products.sort(new Comparator<Product>() {
-        @Override
-        public int compare(Product p1, Product p2) {
-            int result = 0;
-            switch (criterion) {
-                case "Name":
-                    result = p1.getName().compareToIgnoreCase(p2.getName());
-                    break;
-                case "Category":
-                    result = p1.getCategory().compareToIgnoreCase(p2.getCategory());
-                    break;
-                case "Price":
-                    result = Double.compare(p1.getPrice(), p2.getPrice());
-                    break;
-                case "Quantity":
-                    result = Integer.compare(p1.getQuantity(), p2.getQuantity());
-                    break;
-            }
-            return ascending ? result : -result;
-        }
-    });
-    refreshProductsTable();
-}
-    
-    // Utility methods
-    private User authenticate(String username, String password) {
-        for (User user : users) {
-            if (user.getUsername().equals(username) && user.authenticate(password)) {
-                // Initialize cart for customer
-                if ("customer".equals(user.getRole())) {
-                    currentCart = customerCarts.getOrDefault(user.getId(), new Cart(user.getId()));
-                    customerCarts.put(user.getId(), currentCart);
+        if (product != null) {
+            String quantityStr = JOptionPane.showInputDialog(this, "Enter quantity for " + product.getName() + ":");
+            if (quantityStr != null) {
+                try {
+                    int quantity = Integer.parseInt(quantityStr);
+                    if (quantity > 0 && quantity <= product.getQuantity()) {
+                        currentCart.addItem(product, quantity);
+                        JOptionPane.showMessageDialog(this, "Added to cart successfully!");
+                    } else {
+                        JOptionPane.showMessageDialog(this, "Invalid quantity or insufficient stock!");
+                    }
+                } catch (NumberFormatException ex) {
+                    JOptionPane.showMessageDialog(this, "Please enter a valid number!");
                 }
-                return user;
             }
         }
-        return null;
-    }
-    private void searchProducts(String searchTerm) {
-    if (searchTerm == null || searchTerm.trim().isEmpty()) {
-        // If search is empty, show all products
-        isFiltered = false;
-        filteredProducts.clear();
-        refreshProductsTable();
-        return;
     }
     
-    String lowerSearchTerm = searchTerm.toLowerCase().trim();
-    filteredProducts.clear();
-    
-    // Search through all products
-    for (Product product : products) {
-        // Check if search term matches any product field
-        if (product.getName().toLowerCase().contains(lowerSearchTerm) ||
-            product.getCategory().toLowerCase().contains(lowerSearchTerm) ||
-            product.getId().toLowerCase().contains(lowerSearchTerm) ||
-            String.valueOf(product.getPrice()).contains(lowerSearchTerm) ||
-            String.valueOf(product.getQuantity()).contains(lowerSearchTerm)) {
-            filteredProducts.add(product);
+    private void removeSelectedFromCart(JLabel totalLabel) {
+        if (!canAccessCart()) {
+            return;
+        }
+        
+        int selectedRow = cartTable.getSelectedRow();
+        if (selectedRow == -1) {
+            JOptionPane.showMessageDialog(this, "Please select an item to remove!");
+            return;
+        }
+        
+        String productName = (String) cartTableModel.getValueAt(selectedRow, 0);
+        Product product = findProductByName(productName);
+        if (product != null) {
+            currentCart.removeItem(product.getId());
+            refreshCartTable(totalLabel);
+            JOptionPane.showMessageDialog(this, "Item removed from cart!");
         }
     }
     
-    isFiltered = true;
-    refreshProductsTable();
-}
-    
-    private void updateUIBasedOnRole() {
-        if (currentUser == null) {
-            // Show only login tab
-            for (int i = 1; i < tabbedPane.getTabCount(); i++) {
-                tabbedPane.setEnabledAt(i, false);
+    private void clearCart(JLabel totalLabel) {
+        if (!canAccessCart()) {
+            return;
+        }
+        
+        if (currentCart != null && !currentCart.isEmpty()) {
+            int confirm = JOptionPane.showConfirmDialog(this, 
+                "Are you sure you want to clear the cart?", 
+                "Confirm Clear Cart", JOptionPane.YES_NO_OPTION);
+            
+            if (confirm == JOptionPane.YES_OPTION) {
+                currentCart.clear();
+                refreshCartTable(totalLabel);
+                JOptionPane.showMessageDialog(this, "Cart cleared!");
             }
-            tabbedPane.setSelectedIndex(0);
         } else {
-            // Enable tabs based on role
-            for (int i = 0; i < tabbedPane.getTabCount(); i++) {
-                tabbedPane.setEnabledAt(i, true);
-            }
-            
-            if ("admin".equals(currentUser.getRole())) {
-                tabbedPane.setSelectedIndex(4); // Admin tab
-            } else {
-                tabbedPane.setSelectedIndex(1); // Products tab
-            }
-            
-            refreshProductsTable();
-            refreshCartTable(null);
-            refreshOrdersTable();
+            JOptionPane.showMessageDialog(this, "Cart is already empty!");
         }
     }
     
-    private void refreshProductsTable() {
-    productsTableModel.setRowCount(0);
-    
-    // Determine which list to display
-    List<Product> displayList = isFiltered ? filteredProducts : products;
-    
-    for (Product product : displayList) {
-        productsTableModel.addRow(new Object[]{
-            product.getId(),
-            product.getName(),
-            product.getCategory(),
-            String.format("$%.2f", product.getPrice()),
-            product.getQuantity()
-        });
+    private void checkout(JLabel totalLabel) {
+        if (!canAccessCart()) {
+            return;
+        }
+        
+        if (currentCart == null || currentCart.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Cart is empty!");
+            return;
+        }
+        
+        int confirm = JOptionPane.showConfirmDialog(this, 
+            "Proceed with checkout? Total: $" + String.format("%.2f", currentCart.calculateSubtotal()), 
+            "Confirm Checkout", JOptionPane.YES_NO_OPTION);
+        
+        if (confirm == JOptionPane.YES_OPTION) {
+            String orderId = "ORD" + System.currentTimeMillis();
+            Order order = new Order(orderId, currentUser.getId(), currentCart.getItems(), currentCart.calculateSubtotal());
+            orders.add(order);
+            currentCart.clear();
+            
+            refreshCartTable(totalLabel);
+            refreshOrdersTable();
+            
+            JOptionPane.showMessageDialog(this, 
+                "Order placed successfully!\nOrder ID: " + orderId + "\nTotal: $" + String.format("%.2f", order.getTotalPrice()));
+        }
     }
-}
     
     private void refreshCartTable(JLabel totalLabel) {
         cartTableModel.setRowCount(0);
-        if (currentCart != null) {
+        
+        if (currentCart != null && currentUser != null && "customer".equals(currentUser.getRole())) {
             for (Cart.CartItem item : currentCart.getItems()) {
                 cartTableModel.addRow(new Object[]{
                     item.getProductName(),
@@ -723,8 +864,14 @@ public class ECommerceGUI extends JFrame {
             if (totalLabel != null) {
                 totalLabel.setText(String.format("Total: $%.2f", currentCart.calculateSubtotal()));
             }
+        } else {
+            if (totalLabel != null) {
+                totalLabel.setText("Total: $0.00");
+            }
         }
     }
+    
+    // ========== ORDER METHODS ==========
     
     private void refreshOrdersTable() {
         ordersTableModel.setRowCount(0);
@@ -743,94 +890,125 @@ public class ECommerceGUI extends JFrame {
         }
     }
     
-    private void addSelectedToCart() {
-        if (currentUser == null || !"customer".equals(currentUser.getRole())) {
-            JOptionPane.showMessageDialog(this, "Please login as customer to add items to cart!");
-            return;
-        }
-        
-        int selectedRow = productsTable.getSelectedRow();
-        if (selectedRow == -1) {
-            JOptionPane.showMessageDialog(this, "Please select a product first!");
-            return;
-        }
-        
-        String productId = (String) productsTableModel.getValueAt(selectedRow, 0);
-        Product product = findProductById(productId);
-        
-        if (product != null) {
-            String quantityStr = JOptionPane.showInputDialog(this, "Enter quantity for " + product.getName() + ":");
-            try {
-                int quantity = Integer.parseInt(quantityStr);
-                if (quantity > 0 && quantity <= product.getQuantity()) {
-                    currentCart.addItem(product, quantity);
-                    refreshCartTable(null);
-                    JOptionPane.showMessageDialog(this, "Added to cart successfully!");
-                } else {
-                    JOptionPane.showMessageDialog(this, "Invalid quantity or insufficient stock!");
-                }
-            } catch (NumberFormatException ex) {
-                JOptionPane.showMessageDialog(this, "Please enter a valid number!");
+    // ========== ADMIN PRODUCT METHODS ==========
+    
+    private void addProductFromForm(JTextField idField, JTextField nameField, JTextField categoryField, 
+                                   JTextField priceField, JTextField quantityField, DefaultTableModel adminTableModel) {
+        try {
+            String id = idField.getText().trim();
+            String name = nameField.getText().trim();
+            String category = categoryField.getText().trim();
+            double price = Double.parseDouble(priceField.getText());
+            int quantity = Integer.parseInt(quantityField.getText());
+            
+            if (id.isEmpty() || name.isEmpty() || category.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Please fill all fields!");
+                return;
             }
+            
+            if (price < 0 || quantity < 0) {
+                JOptionPane.showMessageDialog(this, "Price and quantity cannot be negative!");
+                return;
+            }
+            
+            Product product = new Product(id, name, category, price, quantity);
+            try {
+                productManager.addProduct(product);
+                JOptionPane.showMessageDialog(this, "Product added successfully!");
+                clearFields(idField, nameField, categoryField, priceField, quantityField);
+                refreshAdminTable(adminTableModel);
+                refreshProductsTable();
+            } catch (IllegalArgumentException e) {
+                JOptionPane.showMessageDialog(this, "Product ID already exists!", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+            
+        } catch (NumberFormatException ex) {
+            JOptionPane.showMessageDialog(this, "Please enter valid numbers for price and quantity!", "Input Error", JOptionPane.ERROR_MESSAGE);
         }
     }
     
-    private void removeSelectedFromCart() {
-        int selectedRow = cartTable.getSelectedRow();
-        if (selectedRow == -1) {
-            JOptionPane.showMessageDialog(this, "Please select an item to remove!");
-            return;
+    private void updateProductFromForm(JTextField idField, JTextField nameField, JTextField categoryField, 
+                                      JTextField priceField, JTextField quantityField, DefaultTableModel adminTableModel) {
+        try {
+            String id = idField.getText().trim();
+            String name = nameField.getText().trim();
+            String category = categoryField.getText().trim();
+            double price = Double.parseDouble(priceField.getText());
+            int quantity = Integer.parseInt(quantityField.getText());
+            
+            if (id.isEmpty() || name.isEmpty() || category.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Please fill all fields!");
+                return;
+            }
+            
+            // Find the existing product and update its properties directly.
+            Product product = productManager.getProductById(id);
+            if (product != null) {
+                // Update fields on the Product object (assumes Product has setters).
+                product.setName(name);
+                product.setCategory(category);
+                product.setPrice(price);
+                product.setQuantity(quantity);
+                
+                JOptionPane.showMessageDialog(this, "Product updated successfully!");
+                refreshAdminTable(adminTableModel);
+                refreshProductsTable();
+            } else {
+                JOptionPane.showMessageDialog(this, "Product not found!", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+            
+        } catch (NumberFormatException ex) {
+            JOptionPane.showMessageDialog(this, "Please enter valid numbers for price and quantity!", "Input Error", JOptionPane.ERROR_MESSAGE);
         }
+    }
+    
+    private void deleteProductFromForm(JTextField idField, DefaultTableModel adminTableModel) {
+        String id = idField.getText().trim();
         
-        String productName = (String) cartTableModel.getValueAt(selectedRow, 0);
-        currentCart.removeItem(findProductByName(productName).getId());
-        refreshCartTable(null);
-        JOptionPane.showMessageDialog(this, "Item removed from cart!");
-    }
-    
-    private void clearCart() {
-        if (currentCart != null) {
-            currentCart.clear();
-            refreshCartTable(null);
-            JOptionPane.showMessageDialog(this, "Cart cleared!");
-        }
-    }
-    
-    private void checkout() {
-        if (currentCart == null || currentCart.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Cart is empty!");
+        if (id.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Please enter a product ID to delete!");
             return;
         }
         
         int confirm = JOptionPane.showConfirmDialog(this, 
-            "Proceed with checkout? Total: $" + currentCart.calculateSubtotal(), 
-            "Confirm Checkout", JOptionPane.YES_NO_OPTION);
+            "Are you sure you want to delete product " + id + "?",
+            "Confirm Deletion", JOptionPane.YES_NO_OPTION);
         
         if (confirm == JOptionPane.YES_OPTION) {
-            String orderId = "ORD" + System.currentTimeMillis();
-            Order order = new Order(orderId, currentUser.getId(), currentCart.getItems(), currentCart.calculateSubtotal());
-            orders.add(order);
-            currentCart.clear();
+            boolean success = productManager.removeProduct(id);
             
-            refreshCartTable(null);
-            refreshOrdersTable();
-            
-            JOptionPane.showMessageDialog(this, 
-                "Order placed successfully!\nOrder ID: " + orderId + "\nTotal: $" + order.getTotalPrice());
+            if (success) {
+                JOptionPane.showMessageDialog(this, "Product deleted successfully!");
+                clearFields(idField);
+                refreshAdminTable(adminTableModel);
+                refreshProductsTable();
+            } else {
+                JOptionPane.showMessageDialog(this, "Product not found!", "Error", JOptionPane.ERROR_MESSAGE);
+            }
         }
     }
     
-    private Product findProductById(String id) {
-        for (Product product : products) {
-            if (product.getId().equals(id)) {
-                return product;
-            }
+    private void refreshAdminTable(DefaultTableModel adminTableModel) {
+        adminTableModel.setRowCount(0);
+        for (Product product : productManager.getAllProducts()) {
+            adminTableModel.addRow(new Object[]{
+                product.getId(),
+                product.getName(),
+                product.getCategory(),
+                String.format("$%.2f", product.getPrice()),
+                product.getQuantity()
+            });
         }
-        return null;
+    }
+    
+    // ========== UTILITY METHODS ==========
+    
+    private void refreshProductsTable() {
+        refreshProductsTableWithList(productManager.getAllProducts());
     }
     
     private Product findProductByName(String name) {
-        for (Product product : products) {
+        for (Product product : productManager.getAllProducts()) {
             if (product.getName().equals(name)) {
                 return product;
             }
@@ -844,7 +1022,160 @@ public class ECommerceGUI extends JFrame {
         }
     }
     
+    private User authenticate(String username, String password) {
+        for (User user : users) {
+            if (user.getUsername().equals(username) && user.authenticate(password)) {
+                if ("customer".equals(user.getRole())) {
+                    currentCart = customerCarts.getOrDefault(user.getId(), new Cart(user.getId()));
+                    customerCarts.put(user.getId(), currentCart);
+                } else {
+                    currentCart = null;
+                }
+                return user;
+            }
+        }
+        return null;
+    }
+    
+    private boolean registerNewUser(String username, String password, String name) {
+        if (username.isEmpty() || password.isEmpty() || name.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Please fill in all fields!", "Registration Error", JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+        
+        if (username.length() < 3 || !username.matches("^[a-zA-Z0-9_]+$")) {
+            JOptionPane.showMessageDialog(this, 
+                "Username must be at least 3 characters long and contain only letters, numbers, and underscores!", 
+                "Registration Error", JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+        
+        if (password.length() < 4) {
+            JOptionPane.showMessageDialog(this, 
+                "Password must be at least 4 characters long!", 
+                "Registration Error", JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+        
+        if (isUsernameTaken(username)) {
+            JOptionPane.showMessageDialog(this, 
+                "Username already exists! Please choose a different username.", 
+                "Registration Error", JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+        
+        String newUserId = "user" + (++userCounter);
+        User newUser = new User(newUserId, username, password, name, "customer");
+        users.add(newUser);
+        
+        customerCarts.put(newUserId, new Cart(newUserId));
+        
+        JOptionPane.showMessageDialog(this, 
+            "Registration successful!\nYou can now login with your new account.", 
+            "Registration Success", JOptionPane.INFORMATION_MESSAGE);
+        
+        return true;
+    }
+    
+    private boolean isUsernameTaken(String username) {
+        for (User user : users) {
+            if (user.getUsername().equals(username)) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
+    private void updateUIBasedOnRole() {
+        if (currentUser == null) {
+            // Disable all tabs except login
+            for (int i = 0; i < tabbedPane.getTabCount(); i++) {
+                tabbedPane.setEnabledAt(i, i == 0);
+            }
+            tabbedPane.setSelectedIndex(0);
+        } else {
+            // Enable tabs based on role
+            for (int i = 0; i < tabbedPane.getTabCount(); i++) {
+                String tabTitle = tabbedPane.getTitleAt(i);
+                
+                if ("Login".equals(tabTitle)) {
+                    tabbedPane.setEnabledAt(i, true);
+                } else if ("Admin".equals(tabTitle)) {
+                    // Only admins can access admin panel
+                    tabbedPane.setEnabledAt(i, "admin".equals(currentUser.getRole()));
+                } else if ("Shopping Cart".equals(tabTitle) || "My Orders".equals(tabTitle)) {
+                    // Only customers can access cart and orders
+                    tabbedPane.setEnabledAt(i, "customer".equals(currentUser.getRole()));
+                } else {
+                    // Products tab accessible to all logged-in users
+                    tabbedPane.setEnabledAt(i, true);
+                }
+            }
+            
+            // Navigate to appropriate tab
+            if ("admin".equals(currentUser.getRole())) {
+                tabbedPane.setSelectedIndex(4); // Admin tab
+            } else {
+                tabbedPane.setSelectedIndex(1); // Products tab
+            }
+            
+            refreshProductsTable();
+            if ("customer".equals(currentUser.getRole())) {
+                refreshOrdersTable();
+            }
+        }
+    }
+    
+    private void updateWelcomeMessage() {
+        if (currentUser != null) {
+            String roleDisplay = "customer".equals(currentUser.getRole()) ? "Customer" : "Administrator";
+            welcomeLabel.setText("Welcome, " + currentUser.getName() + " (" + roleDisplay + ")");
+            logoutButton.setVisible(true);
+        } else {
+            welcomeLabel.setText("Welcome! Please login.");
+            logoutButton.setVisible(false);
+        }
+    }
+    
+    private boolean canAccessCart() {
+        if (currentUser == null) {
+            JOptionPane.showMessageDialog(this, "Please login first!", "Access Denied", JOptionPane.WARNING_MESSAGE);
+            return false;
+        }
+        
+        if (!"customer".equals(currentUser.getRole())) {
+            JOptionPane.showMessageDialog(this, 
+                "Admin users cannot access shopping cart functionality!\nPlease login as a customer to shop.", 
+                "Access Denied", JOptionPane.WARNING_MESSAGE);
+            return false;
+        }
+        
+        return true;
+    }
+    
+    private boolean canAddToCart() {
+        if (currentUser == null) {
+            JOptionPane.showMessageDialog(this, "Please login as a customer to add items to cart!", "Access Denied", JOptionPane.WARNING_MESSAGE);
+            return false;
+        }
+        
+        if (!"customer".equals(currentUser.getRole())) {
+            JOptionPane.showMessageDialog(this, 
+                "Admin users cannot add items to cart!\nPlease login as a customer to shop.", 
+                "Access Denied", JOptionPane.WARNING_MESSAGE);
+            return false;
+        }
+        
+        return true;
+    }
+    
     private void showLoginScreen() {
         setVisible(true);
+    }
+    
+    public static void main(String[] args) {
+        javax.swing.SwingUtilities.invokeLater(() -> {
+            new ECommerceGUI();
+        });
     }
 }

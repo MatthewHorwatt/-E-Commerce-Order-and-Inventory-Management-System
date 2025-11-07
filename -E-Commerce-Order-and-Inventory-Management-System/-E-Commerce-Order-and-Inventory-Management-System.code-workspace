@@ -1,0 +1,11 @@
+{
+	"folders": [
+		{
+			"name": "-E-Commerce-Order-and-Inventory-Management-System",
+			"path": ".."
+		}
+	],
+	"settings": {
+		"java.debug.settings.onBuildFailureProceed": true
+	}
+}
